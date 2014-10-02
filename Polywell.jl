@@ -31,7 +31,11 @@ function current_loop_E_cyl(Q, R, z, rho)
     Ez = Q*z / (4.0 * pi * epsilon_0 * (z^2 + R^2)^1.5 )
     Erho = 0.0
   else 
-    K,E = Elliptic.ellipke(n)
+
+    # Approximate K, E using power-series, as Elliptic Library doesn't support negative arguments
+    K = 0.5 * pi*(1.0 + (x/4.0) + (9.0*x^2/64.0) + (25.0*x^3/256.0) + (1225.0*x^4/16384.0) )
+    E = 0.5 * pi*(1.0 - (x/4.0) - (3.0*x^2/64.0) - (5.0*x^3/256.0) -(175.0*x^4/16384.0) )
+
     Ez = Q*z*sqrt(1.0 - n)*E / ( 2.0*pi^2*epsilon_0 * rplus^1.5 )
     Erho = ( Q / (2.0*pi^2*epsilon_0*sqrt(rminus)) ) * (  (R_on_l * K) +  (rho / rplus)*E - (R_on_l * tsq / rplus)* E  )
   end
@@ -126,15 +130,8 @@ function polyBE(I, Q, R, a, x, y, z)
     (x_c,y_c,z_c) = locations[i]
     (x_n,y_n,z_n) = normals[i]
     zcyl, rho, rho_hat = cart_to_cyl(x,y,z, x_c,y_c,z_c, x_n,y_n,z_n)
-    #println("zcyl = $zcyl , rho = $rho, rho_hat = $rho_hat")
     (Baxial, Brho) = current_loop_B_cyl(I, R, zcyl, rho)
-    #println(Baxial)
-    #println(Brho)
-    
-    #(Eaxial, Erho) = current_loop_E_cyl(Q, R, z, rho)
-    # FIXME(hedj) - Fix domain error in current_loop_E_cyl
-    Eaxial = 0.0
-    Erho = 0.0
+    (Eaxial, Erho) = current_loop_E_cyl(Q, R, z, rho)
 
     B += Baxial * [x_n, y_n, z_n] + Brho.*rho_hat
     E += Eaxial * [x_n, y_n, z_n] + Erho.*rho_hat

@@ -311,20 +311,13 @@ using Base.Test
             # compute E and B fields acting on particle i
             p1 = deepcopy(Particles[i])
             (extB,extE) = external_field(p1.loc[1].x)
+            self_E = zero_vec
+            self_B = zero_vec
 
-            self_E = @parallel (+) for j=1:n
-              if ( j != i )
-                E(p1, Particles[j], t, step)
-              else
-                zero_vec
-              end
-            end
-
-            self_B = @parallel (+) for j=1:n
-              if ( j != i )
-                B(p1, Particles[j], t, step)
-              else
-                zero_vec
+            for j=1:n
+              if (j!=i)
+                self_E += E(p1, Particles[j], t, step)         
+                self_B += B(p1, Particles[j], t, step)         
               end
             end
 
