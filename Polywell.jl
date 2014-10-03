@@ -131,7 +131,7 @@ function polyBE(I, Q, R, a, x, y, z)
     (x_n,y_n,z_n) = normals[i]
     zcyl, rho, rho_hat = cart_to_cyl(x,y,z, x_c,y_c,z_c, x_n,y_n,z_n)
     (Baxial, Brho) = current_loop_B_cyl(I, R, zcyl, rho)
-    (Eaxial, Erho) = current_loop_E_cyl(Q, R, z, rho)
+    (Eaxial, Erho) = current_loop_E_cyl(Q, R, zcyl, rho)
 
     B += Baxial * [x_n, y_n, z_n] + Brho.*rho_hat
     E += Eaxial * [x_n, y_n, z_n] + Erho.*rho_hat
