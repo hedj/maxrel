@@ -19,8 +19,7 @@ module CuspConfinement
         y = rand()
         z = rand()
         if (y^2 + z^2) <= 1.0
-          Position = [ -R, 2.0*radius*y - radius, 2.0*radius*z - radius ]        
-          # 1% scatter in velocities
+          Position = [ -R, 2.0*radius*y - radius, 2.0*radius*z - radius ]        # 1% scatter in velocities
           Scatter = v * 0.01 * (rand(3) - 0.5)
           Velocity = [ v, 0.0, 0.0 ] + Scatter
           append!(Particles, [MaxRel.Electron(Position, Velocity, zero_vec)])
@@ -117,19 +116,24 @@ module CuspConfinement
     return (n_lost, NewParticles)
   end
 
-  function ComputeStepSize(Particles, upper_bound)
-    # Make sure time step * velocity <  1/2 smallest interparticle distance
-    min_dsq = 1e34
-    max_v = 0.0
+  function ComputeStepSize(Particles, max_d)
+    # Make sure particles cannot crash into each other.
+    safety_factor = 10.0
+    step_size = 1e38
     for i=1:length(Particles)
+      # compute time for a collision
+      v = Particles[i].loc[1].v
+      step_size = min(step_size, max_d / sqrt(dot(v,v)))
       for j=i+1:length(Particles)
+        vrel = Particles[j].loc[1].v - v
         R = Particles[j].loc[1].x - Particles[i].loc[1].x
-        min_dsq = min(min_dsq, dot(R,R))
+        if ( dot(vrel, R) < 0.0 )  # heading towards each other
+          step_size = min(step_size, sqrt(dot(R,R) / dot(vrel, vrel))/safety_factor)
+        end
       end
-      max_v = max(max_v, sqrt(dot(Particles[i].loc[1].v, Particles[i].loc[1].v)))
     end
-    step = min(upper_bound, 0.5 * sqrt(min_dsq) / max_v)
-    return step
+
+    return step_size
   end
 
   function ev_to_metres_per_second(electron_volts, charge, mass)
@@ -143,10 +147,18 @@ module CuspConfinement
   function DemoScenario(Bmax, nparticles, R, a, electron_volts)
     I = 2*R*Bmax / mu_0
     v = ev_to_metres_per_second(electron_volts, q_e, m_e)
-    MeasureCuspLoss(R, a, I, 0.0, v, nparticles, 1.0e-9, 1e-7, "results/confinement")
+    MeasureCuspLoss(R, a, I, 0.0, v, nparticles, 5e-4, 1e-7, "results/confinement")
   end
 
-  function MeasureCuspLoss(R,a,I,Q,v,nparticles,max_step,runtime,output_prefix,log_interval=1e-10)
+  function Benchmark()
+    tic()
+      v = ev_to_metres_per_second(5000, q_e, m_e)
+      I = 2*0.15*0.5 / mu_0
+      MeasureCuspLoss(0.15, 0.01, I, 0.0, v, 100, 5e-4, 3.0e-10, "/tmp/benchmark", 1e10)
+    toc()
+  end
+
+  function MeasureCuspLoss(R,a,I,Q,v,nparticles,max_dist,runtime,output_prefix,log_interval=1e-10)
 
     seedRNG()
     # set up particles in a 5mm-radius beam
@@ -161,7 +173,10 @@ module CuspConfinement
     write(paramsfile, "I: $I\n")
     write(paramsfile, "Q: $Q\n")
     write(paramsfile, "nparticles: $nparticles\n")
-    write(paramsfile, "max_step: $max_step\n")
+    write(paramsfile, "max_dist: $max_dist\n")
+    write(paramsfile, "v: $v\n")
+    max_step = max_dist / v
+    write(paramsfile, "max_dist/v: $max_step\n")
     write(paramsfile, "runtime: $runtime\n")
     close(paramsfile)
 
@@ -186,11 +201,10 @@ module CuspConfinement
         last_log = t
         LogLocations(Particles, trajectory_file, t)
       end
-      step = ComputeStepSize(Particles, max_step)
+      step = ComputeStepSize(Particles, max_dist)
       MaxRel.green("t = $t")
-      # Record positions to disk every nsteps_per_log steps
-       #(measure number of particles 'lost'), remove from simulation
-       #(we take 'loss' as escaping to a distance of 2R from the origin)
+      #(measure number of particles 'lost'), remove from simulation
+      #(we take 'loss' as escaping to a distance of 2R from the origin)
       (n_lost, Particles) = RemoveEscapedParticles(Particles, 2.0*R)
       if (n_lost > 0)
         println("Lost $n_lost particles")

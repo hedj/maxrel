@@ -9,6 +9,7 @@ using Base.Test
         custom_handler(r::Test.Failure) = error("test failed: $(r.expr)")
         custom_handler(r::Test.Error) = rethrow(r)
 
+
         # A relativistic N-Body code
         # Uses the retarded potential formulation to compute exact
         # evolution of particles under external and self-fields.
@@ -347,24 +348,12 @@ using Base.Test
           charge_to_mass = (p1.q / p1.m)
           # compute acceleration
           function a(v::Vector)
-            return (charge_to_mass / gamma(v))*(E + cross(v, B) + invcsquared*dot(E,v)*v)
+            return (charge_to_mass / gamma(v))*(E + cross(v, B) - invcsquared*dot(E,v)*v)
           end
 
           vm = p1.loc[1].v  # v^{n-1/2}
           am = a(vm)
-          
-          #print("x = ")
-          #println(p1.loc[1].x)
-          #print("E = ")
-          #println(E)
-          #print("B = ")
-          #println(B)
-          #print("v = ")
-          #println(vm)
-          #print("a = ") 
-          #println(am)
-
-
+         
           # the function we wish to minimise, as a function of x == v^{n+1/2}
           # We do not calculate all the derivatives here, so we are restricted
           # to using derivative-free solvers
@@ -388,12 +377,15 @@ using Base.Test
           #println("step = $step")
 
           # compute the (constant-gamma) Boris estimate as a starting point
-          vmb = vm + (E * 0.5 * step * charge_to_mass) / gamma(vm)
-          t = (charge_to_mass * 0.5 * B * step) / gamma(vm)
+          invgvm = 1.0 / gamma(vm)
+          E_eff = E - invcsquared*dot(E,vm)*vm
+          vmb = vm + (E_eff * 0.5 * step * charge_to_mass)*invgvm
+          t = (charge_to_mass * 0.5 * B * step) *invgvm
           s = (2.0 *  t) / (1.0 + dot(t,t))
           vprb = vmb + cross(vmb, t)
           vpb = vmb + cross(vprb, s)
-          v_guess = vpb + (E * 0.5 * step * charge_to_mass) / gamma(vm)
+          E_eff_final = E - invcsquared*dot(E,vpb)*vpb
+          v_guess = vpb + (E_eff_final * 0.5 * step * charge_to_mass)*invgvm
 
           if ( f(v_guess, [0.0, 0.0, 0.0]) > 1e-6 ) then
             (minf, minx, ret) = optimize(opt, v_guess)
@@ -401,7 +393,6 @@ using Base.Test
             minx = v_guess
           end
 
-          vavg = 0.5*(vm + minx)
           x = p1.loc[1].x
           xn = x + minx*step
           retval = Coordinate(xn, minx, (minx - vm)/step, 0)
