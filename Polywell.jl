@@ -33,8 +33,8 @@ function current_loop_E_cyl(Q, R, z, rho)
   else 
 
     # Approximate K, E using power-series, as Elliptic Library doesn't support negative arguments
-    K = 0.5 * pi*(1.0 + (x/4.0) + (9.0*x^2/64.0) + (25.0*x^3/256.0) + (1225.0*x^4/16384.0) )
-    E = 0.5 * pi*(1.0 - (x/4.0) - (3.0*x^2/64.0) - (5.0*x^3/256.0) -(175.0*x^4/16384.0) )
+    K = 0.5 * pi*(1.0 + (n/4.0) + (9.0*n^2/64.0) + (25.0*n^3/256.0) + (1225.0*n^4/16384.0) )
+    E = 0.5 * pi*(1.0 - (n/4.0) - (3.0*n^2/64.0) - (5.0*n^3/256.0) -(175.0*n^4/16384.0) )
 
     Ez = Q*z*sqrt(1.0 - n)*E / ( 2.0*pi^2*epsilon_0 * rplus^1.5 )
     Erho = ( Q / (2.0*pi^2*epsilon_0*sqrt(rminus)) ) * (  (R_on_l * K) +  (rho / rplus)*E - (R_on_l * tsq / rplus)* E  )
